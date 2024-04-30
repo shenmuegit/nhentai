@@ -1,4 +1,4 @@
-from flask import Flask, request, Response, send_file
+from flask import Flask, request, Response, send_file, g
 from zipfile import ZipFile
 from pyquery import PyQuery as pq
 import urllib.request
@@ -13,19 +13,12 @@ path = "/home/acg/"
 thread_poll = ThreadPoolExecutor(max_workers=5)
 app = Flask(__name__)
 
-def responseDown(filename):
-    # 流式读取
-    def send_file():
-        with open(filename, 'rb') as targetfile:
-            while 1:
-                data = targetfile.read(5 * 1024 * 1024)  # 每次读取20M
-                if not data:
-                    break
-                yield data
-    response = Response(send_file(), content_type='application/octet-stream')
-    response.headers["Content-disposition"] = 'attachment; filename=%s' % filename  # 如果不加上这行代码，导致下图的问题
+@app.after_request
+def remove_file(response):
+    file = g.file
+    if os.path.exists(file):
+        os.remove(file)
     return response
-
 
 @app.route('/api/get_data', methods=['GET'])
 def get_data():
@@ -41,6 +34,7 @@ def get_data():
             shutil.rmtree(f'{path}{filename}', ignore_errors=True)
             download(key, cookie, path)
         # 通过 with 语句将临时文件发送给用户，并在下载完成后删除临时文件
+        g.file = file
         return send_file(file, as_attachment=True)
     else:
         return 'Please provide a key parameter.'
@@ -108,16 +102,26 @@ def download(key, cookie, path):
     opener = urllib.request.build_opener(httpproxy_handler)
     request = urllib.request.Request(f'https://nhentai.net{key}')
     opener.addheaders = [
-        ("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
-        ("Accept-Language", "zh-CN,zh-Hans;q=0.9"),
-        ("Connection", "keep-alive"),
-        ("Cookie", cookie),
-        ("Host", "nhentai.net"),
+        ("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"),
+        ("accept-language", "en,zh-CN;q=0.9,zh;q=0.8"),
+        ("cookie", cookie),
+        ("priority","u=0, i"),
         ("Referer", "https://nhentai.net/"),
-        ("Sec-Fetch-Dest", "document"),
-        ("Sec-Fetch-Mode", "navigate"),
-        ("Sec-Fetch-Site", "same-origin"),
-        ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15")
+        ("sec-ch-ua", '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'),
+        ("sec-ch-ua-arch", '"arm"'),
+        ("sec-ch-ua-bitness", '"64"'),
+        ("sec-ch-ua-full-version", '"124.0.6367.91"'),
+        ("sec-ch-ua-full-version-list", 'Chromium";v="124.0.6367.91", "Google Chrome";v="124.0.6367.91", "Not-A.Brand";v="99.0.0.0"'),
+        ("sec-ch-ua-mobile", "?0"),
+        ("sec-ch-ua-model", '""'),
+        ("sec-ch-ua-platform", '"macOS"'),
+        ("sec-ch-ua-platform-version", '"14.4.1"'),
+        ("sec-fetch-dest", "document"),
+        ("sec-fetch-mode", "navigate"),
+        ("sec-fetch-site", "same-origin"),
+        ("sec-fetch-user", "?1"),
+        ("upgrade-insecure-requests", "1"),
+        ("user-agent", 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36')
     ]
     html = get(request, opener)
     d = pq(html)
@@ -132,15 +136,21 @@ def download(key, cookie, path):
     imageDomain = "https://i" + imageDomain[9:imageDomain.rfind('/') + 1]
     downloadOpener = urllib.request.build_opener(httpproxy_handler)
     downloadOpener.addheaders = [
-            ("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
-            ("Sec-Fetch-Site", "none"),
-            ("Cookie", cookie),
-            ("Sec-Fetch-Mode", "navigate"),
-            ("Host", "i3.nhentai.net"),
-            ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15"),
-            ("Accept-Language", "zh-CN,zh-Hans;q=0.9"),
-            ("Sec-Fetch-Dest", "document"),
-            ("Connection", "keep-alive")
+        ("accept", 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'),
+        ("accept-language", "en,zh-CN;q=0.9,zh;q=0.8"),
+        ("cache-control", "max-age=0"),
+        ("cookie", cookie),
+        ("if-modified-since", "Sun, 28 Apr 2024 22:26:27 GMT"),
+        ("priority", "u=0, i"),
+        ("sec-ch-ua", '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'),
+        ("sec-ch-ua-mobile", "?0"),
+        ("sec-ch-ua-platform", '"macOS"'),
+        ("sec-fetch-dest", "document"),
+        ("sec-fetch-mode", "navigate"),
+        ("sec-fetch-site", "none"),
+        ("sec-fetch-user", "?1"),
+        ("upgrade-insecure-requests", "1"),
+        ("user-agent", 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36')
     ]
     all_task = []
     filename = key[key.find('/') + 1:key.rfind('/')]
@@ -154,7 +164,7 @@ def download(key, cookie, path):
             time.sleep(3)
         image = f"{imageDomain}{i}.jpg"
         all_task.append(thread_poll.submit(down, urllib.request.Request(image), downloadOpener, dir + "/" + str(i) + ".jpg",image, 20))
-        print("download:" + image + ", path:" + dir + "/" + str(i) + ".jpg")
+        # print("download:" + image + ", path:" + dir + "/" + str(i) + ".jpg")
     concurrent.futures.wait(all_task,timeout=1800, return_when=concurrent.futures.ALL_COMPLETED)
     all_task.clear()
     print("download full " + str(len(all_task)))

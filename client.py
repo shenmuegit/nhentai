@@ -5,10 +5,9 @@ import re
 import threading
 from pyquery import PyQuery as pq
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import concurrent.futures
 
-semaphore = threading.Semaphore(3)
-thread_poll = ThreadPoolExecutor(max_workers=3)
+semaphore = threading.Semaphore(1)
+thread_poll = ThreadPoolExecutor(max_workers=1)
 conn = psycopg2.connect(
     dbname="nhentai",
     user="postgres",
@@ -16,14 +15,21 @@ conn = psycopg2.connect(
     host="localhost",
     port="5432",
 )
-path = "/Users/shuyumeng/Documents/nhentai/"
+path = "/Users/zhenzijun/Downloads/nhentai/"
 # map
 ipCookie = [
-    # {"ip": "", "cookie":""},
-    # {"ip": "", "cookie":""},
-    {"ip": "206.237.18.105", "cookie":"cf_chl_3=;%20cf_chl_rc_m=;%20cf_clearance=n2dELdmwQV_qJBg3B2QRWv.Nv0Ejni_WdUAIIyqG.6Y-1714381691-1.0.1.1-NLKS1KBQvF2OUFQMQLRUf0dsD9t_OlhKqtjzVkV0ZdD_cSe7N3VKJJRlKLaCFDdcsgviwIbvxRPML0UHmLeHjA;%20csrftoken=HmP9TyESQtwpoXtuBDxeZWQp5M3xVEZ1gipg4Y3McS7ZStoBK58ACNka3hba9wXV;%20cf_chl_3=3d8d8b5c4bbd4bb;%20cf_chl_rc_m=2"}
+    # {"ip": "192.3.25.104", "cookie":"csrftoken=yUvus0YMmIrp3HixMx1vR5XbUmnlwIvLC7toMY2joCHQj6OHpb4rztSbdFeg5l5I; cf_clearance=KmD2FNJAV0Y.hzqp2QnZ8s05rTPYJqhsy1db2JnsM60-1714446289-1.0.1.1-_ZTmoiYY96Oa_uReasjy5s2m4GCCLDhLn2gjdQkNP3_6mVnjT7gaYJzySy_jmDAe_SuEeledJJAQk3v4hA3jsg"},
+    # {"ip": "198.23.173.72", "cookie":"csrftoken=yUvus0YMmIrp3HixMx1vR5XbUmnlwIvLC7toMY2joCHQj6OHpb4rztSbdFeg5l5I; cf_clearance=dsI9BMLXR.FYje.ii41gygHvPdyUMd0Ci_efh98RCi8-1714384176-1.0.1.1-vg8p2lqF1xnJNnntIyC1UUePRbL5vV7xj9OnDuswXwZOTl0ZuavOkVDyCwcd4nzEdg9fa7UO4cdjkpOvPY3idw"},
+    {"ip": "206.237.18.105", "cookie":"cf_clearance=ItXpHZCDRb0grSAOXkWQklPPy0dHxQix0lADXIOsSJ8-1714447237-1.0.1.1-U3FaNnP6l3I_9Qg8S8QoSaUayIVfeGSJJvKDsWECusqsYOPGp5QmeipFizCvNjJ53eJmmFfThEWhnz941kAXJA; csrftoken=KI69t26ByT4IHMcRmoXahpRrbhPLMTRbCQrtLUIA2Gs1o9L8TSrVT08eJGyfs1qH"}
 ]
-cookie = 'csrftoken=HmP9TyESQtwpoXtuBDxeZWQp5M3xVEZ1gipg4Y3McS7ZStoBK58ACNka3hba9wXV; cf_chl_3=; cf_chl_rc_m=; cf_clearance=J7ynd5mlXXJ3oT7X0g07W.zdugvu4Hrptunc_hOpGqA-1714382511-1.0.1.1-utjFlzyhMSlrZtdyNS.iR0l3xJEG_z1.iedIPbZBXj42ydqsYNEasQNpxo1.SvYNa5IoQ39D_Rl6HoWA7iHtkw; cf_chl_3=3fe64c4ac310551; cf_chl_rc_m=2'
+ipIndex = -1
+cookie = 'csrftoken=KI69t26ByT4IHMcRmoXahpRrbhPLMTRbCQrtLUIA2Gs1o9L8TSrVT08eJGyfs1qH; cf_clearance=iqji9oLep3W..nAzWVbJwo9CJnowEANASz5M3Hr1UAQ-1714447548-1.0.1.1-Y7QiQACjHk8nV6b986nCG_Rek.aq9X_eS0Gb85PgzaIIoXxtCWuY8GwEnY0F2kn3.pL344POlOW3zgZnP4HvWw'
+
+def chooseIp():
+    # 按顺序
+    global ipIndex
+    ipIndex += 1
+    return ipCookie[ipIndex % 1]
 
 def get(url, opener, max_retries=99):
     retries = 0
@@ -44,18 +50,33 @@ def start(cookie):
         # httpproxy_handler = urllib.request.HTTPHandler()
         opener = urllib.request.build_opener(httpproxy_handler)
         request = urllib.request.Request("https://nhentai.net/search/?q=pages%3A%3E100+chinese&page=" + str(pagenum))
-        opener.addheaders = [
-            ("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
-            ("Accept-Language", "zh-CN,zh-Hans;q=0.9"),
-            ("Connection", "keep-alive"),
-            ("Cookie", cookie),
-            ("Host", "nhentai.net"),
+
+        header = [
+            ("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"),
+            ("accept-language", "en,zh-CN;q=0.9,zh;q=0.8"),
+            ("cache-control", "max-age=0"),
+            ("content-type", "application/x-www-form-urlencoded"),
+            ("cookie", cookie),
+            ("origin", "https://nhentai.net"),
+            ("priority","u=0, i"),
             ("Referer", "https://nhentai.net/"),
-            ("Sec-Fetch-Dest", "document"),
-            ("Sec-Fetch-Mode", "navigate"),
-            ("Sec-Fetch-Site", "same-origin"),
-            ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15")
+            ("sec-ch-ua", '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'),
+            ("sec-ch-ua-arch", '"arm"'),
+            ("sec-ch-ua-bitness", '"64"'),
+            ("sec-ch-ua-full-version", '"124.0.6367.91"'),
+            ("sec-ch-ua-full-version-list", 'Chromium";v="124.0.6367.91", "Google Chrome";v="124.0.6367.91", "Not-A.Brand";v="99.0.0.0"'),
+            ("sec-ch-ua-mobile", "?0"),
+            ("sec-ch-ua-model", '""'),
+            ("sec-ch-ua-platform", '"macOS"'),
+            ("sec-ch-ua-platform-version", '"14.4.1"'),
+            ("sec-fetch-dest", "document"),
+            ("sec-fetch-mode", "navigate"),
+            ("sec-fetch-site", "same-origin"),
+            ("sec-fetch-user", "?1"),
+            ("upgrade-insecure-requests", "1"),
+            ("user-agent", 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36')
         ]
+        opener.addheaders = header
         html = get(request, opener)
         d = pq(html)
         d = d(".index-container").eq(0)
@@ -71,20 +92,21 @@ def start(cookie):
             if existByName(name):
                 print(f"continue exist {name}")
                 continue
-            ip = ipCookie[index]["ip"]
-            cookie = ipCookie[index]["cookie"]
+            map = chooseIp()
+            ip = map["ip"]
+            cookie = map["cookie"]
             with semaphore:
                 print(f'{ip},{href}')
-                # index += 1
-                thread_poll.submit(access_shared_resource,ip,href,cookie,name)
+                cookie = urllib.parse.quote(cookie)
+                thread_poll.submit(access_shared_resource,ip,href,cookie,name,header)
     print("name exist")
 
-def access_shared_resource(ip,href,cookie,name):
+def access_shared_resource(ip,href,cookie,name,header):
     with semaphore: 
         # 在临界区内，对共享资源进行操作
         while not download(ip,href,cookie):
             time.sleep(5)
-        details(name,href,)
+        details(name,href,header)
 
 def download(ip,key,cookie):
     httpproxy_handler = urllib.request.HTTPHandler()
@@ -103,13 +125,16 @@ def download(ip,key,cookie):
     # 如果不是文件则判断字符串是不是download
     elif response.read().decode("utf-8") == 'download':
         print(f"Downloaded image to {path}{filename}.zip")
+    else:
+        # 输出错误信息
+        print(f"Failed to download image: {response.read().decode('utf-8')}")
     return False
 
 def details(name,key,header):
     httpproxy_handler = urllib.request.ProxyHandler({'http': 'http://127.0.0.1:1081','https': 'http://127.0.0.1:1081'})
     opener = urllib.request.build_opener(httpproxy_handler)
     request = urllib.request.Request(f'https://nhentai.net{key}')
-    opener.addheaders = [header]
+    opener.addheaders = header
     html = get(request, opener)
     d = pq(html)
     # 找到class=tag-container的div
@@ -156,6 +181,7 @@ def details(name,key,header):
     bookId = addBook(name,page,languages,f'https://nhentai.net{key}',f'/Users/shuyumeng/Documents/nhentai/{key}')
     addBookArtists(bookId,artists)
     addBookTags(bookId,tags)
+    conn.commit()
     print(f"bookId:{bookId} name:{name} page:{page} languages:{languages} artists:{artists} tags:{tags}")
 
 def addBookArtists(bookId,artists):
