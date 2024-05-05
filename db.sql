@@ -5,9 +5,8 @@
 -- DROP TABLE public.artist;
 
 CREATE TABLE public.artist (
-	id int8 NOT NULL,
-	"name" varchar NULL,
-	CONSTRAINT artists_pk PRIMARY KEY (id)
+	id SERIAL PRIMARY KEY,
+	"name" varchar NULL
 );
 CREATE UNIQUE INDEX artists_name_idx ON public.artist USING btree (name);
 
@@ -19,13 +18,12 @@ CREATE UNIQUE INDEX artists_name_idx ON public.artist USING btree (name);
 -- DROP TABLE public.book;
 
 CREATE TABLE public.book (
-	id int8 NOT NULL,
+	id SERIAL PRIMARY KEY,
 	"name" varchar NULL,
 	"language" varchar NULL,
 	url varchar NULL,
 	page int4 NULL,
-	"path" varchar NULL,
-	CONSTRAINT book_pk PRIMARY KEY (id)
+	"path" varchar NULL
 );
 
 
@@ -36,10 +34,9 @@ CREATE TABLE public.book (
 -- DROP TABLE public.book_artist;
 
 CREATE TABLE public.book_artist (
-	id int8 NOT NULL,
+	id SERIAL PRIMARY KEY,
 	book_id int8 NULL,
-	artist_id int8 NULL,
-	CONSTRAINT book_artist_pk PRIMARY KEY (id)
+	artist_id int8 NULL
 );
 CREATE INDEX book_artist_book_id_idx ON public.book_artist USING btree (book_id, artist_id);
 
@@ -51,7 +48,7 @@ CREATE INDEX book_artist_book_id_idx ON public.book_artist USING btree (book_id,
 -- DROP TABLE public.book_tag;
 
 CREATE TABLE public.book_tag (
-	id int8 NULL,
+	id SERIAL PRIMARY KEY,
 	book_id int8 NULL,
 	tag_id int8 NULL
 );
@@ -65,8 +62,7 @@ CREATE INDEX book_tag_book_id_idx ON public.book_tag USING btree (book_id, tag_i
 -- DROP TABLE public.tag;
 
 CREATE TABLE public.tag (
-	id int8 NOT NULL,
-	"name" varchar NULL,
-	CONSTRAINT tag_pk PRIMARY KEY (id)
+	id SERIAL PRIMARY KEY,
+	"name" varchar NULL
 );
 CREATE UNIQUE INDEX tag_name_idx ON public.tag USING btree (name);
