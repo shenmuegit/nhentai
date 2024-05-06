@@ -79,6 +79,7 @@ def start(startIndex):
                 continue
             addBookTmp(key)
             download(href,path,name,key)
+            print(f"download {name} {href} {key} {pagenum}")
     print("name exist")
 
 def access_shared_resource():
@@ -157,6 +158,7 @@ def download(key, path, name, hash):
         })
         while i == int(pages):
             if blocking_queue.empty():
+                time.sleep(20)
                 details(name,key,dir,hash)
                 break
     print(f"download full {key}")
